@@ -1,0 +1,1119 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Хронометр">
+<meta name="format-detection" content="telephone=no">
+<meta name="theme-color" content="#f3f3f0" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0d0d" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<title>Хронометр</title>
+<style>
+:root{
+  color-scheme: light;
+  --bg:#f3f3f0; --card:#fcfcfb; --card2:#ebeae5; --ink:#0b0b0b; --ink2:#52514e; --muted:#898781;
+  --line:#e1e0d9; --axis:#c3c2b7; --ring:rgba(11,11,11,.10); --shadow:0 6px 24px rgba(0,0,0,.07);
+  --danger:#d03b3b; --good:#006300;
+  --c0:#2a78d6; --c1:#eb6834; --c2:#1baf7a; --c3:#eda100; --c4:#e87ba4; --c5:#008300; --c6:#6250d6; --c7:#e34948;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme: dark;
+    --bg:#0d0d0d; --card:#1a1a19; --card2:#2a2a28; --ink:#f0efec; --ink2:#c3c2b7; --muted:#898781;
+    --line:#2c2c2a; --axis:#383835; --ring:rgba(255,255,255,.10); --shadow:none;
+    --danger:#e66767; --good:#0ca30c;
+    --c0:#3987e5; --c1:#d95926; --c2:#199e70; --c3:#c98500; --c4:#d55181; --c5:#008300; --c6:#9085e9; --c7:#e66767;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --bg:#0d0d0d; --card:#1a1a19; --card2:#2a2a28; --ink:#f0efec; --ink2:#c3c2b7; --muted:#898781;
+  --line:#2c2c2a; --axis:#383835; --ring:rgba(255,255,255,.10); --shadow:none;
+  --danger:#e66767; --good:#0ca30c;
+  --c0:#3987e5; --c1:#d95926; --c2:#199e70; --c3:#c98500; --c4:#d55181; --c5:#008300; --c6:#9085e9; --c7:#e66767;
+}
+
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.35 system-ui,-apple-system,"Segoe UI",sans-serif;
+  -webkit-tap-highlight-color:transparent;overscroll-behavior-y:none;-webkit-user-select:none;user-select:none}
+body::before{content:"";position:fixed;top:0;left:0;right:0;height:env(safe-area-inset-top);background:var(--bg);z-index:20}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;margin:0;cursor:pointer;touch-action:manipulation;text-align:inherit}
+button:disabled{opacity:.3;cursor:default}
+input,select{-webkit-user-select:text;user-select:text}
+main{max-width:560px;margin:0 auto;padding:calc(env(safe-area-inset-top) + 6px) 16px calc(92px + env(safe-area-inset-bottom))}
+.num{font-variant-numeric:tabular-nums}
+.hd{padding:6px 2px 2px}
+h1{font-size:30px;font-weight:700;margin:4px 0 2px;letter-spacing:-.01em}
+h2{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--ink2);margin:0 0 10px}
+.sub{color:var(--ink2);font-size:15px}
+.sub b{color:var(--ink);font-weight:600}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--cc);flex:none;display:inline-block}
+.card{background:var(--card);border-radius:18px;box-shadow:0 0 0 1px var(--ring);padding:16px;margin:12px 0}
+.empty{color:var(--muted);text-align:center;padding:12px 0 4px;margin:0}
+
+/* ---------- now card ---------- */
+.now{position:sticky;top:env(safe-area-inset-top);z-index:10;margin:12px 0 18px;padding:14px 14px 14px 18px;border-radius:20px;
+  background:var(--card);box-shadow:0 0 0 1px var(--ring),var(--shadow);display:flex;align-items:center;gap:10px;min-height:92px;overflow:hidden}
+.now.on::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--cc)}
+.now-idle b{display:block;font-size:17px;font-weight:600}
+.now-idle span{color:var(--ink2);font-size:14px}
+.now-l{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.now-cat{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.now-cat .dot{width:8px;height:8px}
+.now-name{font-size:19px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.now-since{font-size:13px;color:var(--muted)}
+.now-since u{text-decoration:none;color:var(--ink2);border-bottom:1px dotted var(--muted)}
+.now-r{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.now-clock{font-size:32px;font-weight:600;letter-spacing:-.02em;line-height:1}
+.stopbtn{display:flex;align-items:center;gap:6px;background:var(--ink);color:var(--card);border-radius:999px;padding:7px 14px 7px 11px;font-size:15px;font-weight:600}
+
+/* ---------- task list ---------- */
+.grp{margin:0 0 18px}
+.grp-h{display:flex;justify-content:space-between;align-items:baseline;padding:0 4px 7px;font-size:13px;font-weight:600;
+  text-transform:uppercase;letter-spacing:.04em;color:var(--ink2)}
+.grp-h .num{text-transform:none;letter-spacing:0;font-weight:500}
+.list{background:var(--card);border-radius:16px;box-shadow:0 0 0 1px var(--ring);overflow:hidden}
+.task{display:flex;align-items:center;gap:12px;width:100%;min-height:58px;padding:9px 12px 9px 16px;position:relative}
+.task+.task::before,.jrow+.jrow::before,.jrow+.jgap::before,.jgap+.jrow::before,.erow+.erow::before{content:"";position:absolute;left:38px;right:0;top:0;border-top:1px solid var(--line)}
+.task:active{background:var(--card2)}
+.task.on{background:var(--card2);background:color-mix(in srgb,var(--cc) 13%,var(--card))}
+.task.on .dot{animation:pulse 1.6s ease-in-out infinite}
+.tn{flex:1;min-width:0}
+.tn b{display:block;font-weight:500;font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tn small{display:block;color:var(--muted);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+.tt{color:var(--ink2);font-size:15px;white-space:nowrap}
+.task.on .tt{color:var(--ink);font-weight:600}
+.pl{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;background:var(--card2);color:var(--ink2);flex:none}
+.task.on .pl{background:var(--ink);color:var(--card)}
+@keyframes pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.35);opacity:.6}}
+@media (prefers-reduced-motion: reduce){.task.on .dot{animation:none}}
+
+.banner{display:flex;gap:10px;align-items:flex-start;width:100%;background:var(--card);box-shadow:0 0 0 1px var(--ring);border-radius:14px;padding:12px 14px;margin:10px 0 0;font-size:14px;color:var(--ink2)}
+.banner b{color:var(--ink)}
+.banner .x{margin-left:auto;color:var(--muted);font-size:20px;line-height:1;padding:0 2px}
+
+/* ---------- stats ---------- */
+.seg{display:flex;background:var(--card2);border-radius:11px;padding:2px;margin:12px 0 6px}
+.seg button{flex:1;min-width:0;padding:8px 0;font-size:13px;border-radius:9px;color:var(--ink2);text-align:center}
+.seg button.on{background:var(--card);color:var(--ink);font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.14)}
+.pnav{display:flex;align-items:center;justify-content:space-between;margin:2px -6px}
+.pnav button{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;color:var(--ink2)}
+.pnav button:active{background:var(--card2)}
+.plabel{font-weight:600;font-size:16px;text-align:center}
+.hero{font-size:38px;font-weight:700;letter-spacing:-.02em;line-height:1.1}
+.share{display:flex;gap:2px;height:10px;border-radius:4px;overflow:hidden;margin:16px 0 10px}
+.share span{min-width:2px}
+.legend{display:flex;flex-direction:column;gap:7px}
+.lg{display:flex;align-items:center;gap:8px;font-size:15px}
+.lg-n{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pct{color:var(--muted);font-size:13px;min-width:38px;text-align:right}
+
+.plot{position:relative;height:150px;margin:8px 34px 0 0}
+.gl{position:absolute;left:0;right:-34px;border-top:1px solid var(--line);height:0}
+.gl span{position:absolute;right:0;top:-8px;font-size:11px;color:var(--muted);background:var(--card);padding-left:4px}
+.gl.base{border-top-color:var(--axis)}
+.cols{position:absolute;inset:0;display:flex;align-items:stretch}
+.col{flex:1;height:100%;display:flex;justify-content:center;padding:0 1px}
+.stack{display:flex;flex-direction:column-reverse;justify-content:flex-start;gap:2px;width:100%;max-width:28px;height:100%}
+.stack span{flex:none;width:100%}
+.stack span:last-child{border-radius:4px 4px 0 0}
+.col.dim .stack{opacity:.35}
+.xl{display:flex;margin:5px 34px 0 0}
+.xl span{flex:1;text-align:center;font-size:11px;color:var(--muted);white-space:nowrap;overflow:visible}
+.xl span.today{color:var(--ink);font-weight:700}
+.detail{min-height:44px;margin-top:12px;padding-top:10px;border-top:1px solid var(--line);font-size:14px;color:var(--ink2)}
+.detail b{color:var(--ink)}
+.chipsrow{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:4px}
+.chipsrow span{display:inline-flex;align-items:center;gap:5px}
+.chipsrow .dot{width:8px;height:8px}
+
+.tl{position:relative;height:40px;border-radius:8px;background:var(--card2);margin-top:10px;overflow:hidden}
+.tl-seg{position:absolute;top:0;bottom:0;min-width:2px}
+.tl-seg.sel{box-shadow:inset 0 0 0 2px var(--ink)}
+.tl-now{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--ink);border-radius:1px}
+.tl-ax{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:5px}
+
+.trow{padding:7px 0}
+.trow-top{display:flex;align-items:baseline;gap:8px;font-size:15px}
+.trow-top .tn b{font-size:15px}
+.trow-top i{font-style:normal;font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:5px;padding:0 4px;margin-left:4px}
+.tbar{margin-top:5px;height:6px}
+.tbar span{display:block;height:6px;border-radius:0 4px 4px 0;background:var(--cc);min-width:3px}
+
+/* ---------- journal ---------- */
+.jday{margin:16px 0}
+.jday-h{display:flex;justify-content:space-between;padding:0 4px 7px;font-size:14px;font-weight:600;color:var(--ink2)}
+.jrow{display:flex;align-items:center;gap:12px;width:100%;min-height:56px;padding:8px 14px 8px 12px;position:relative}
+.jrow:active,.jgap:active,.erow-main:active{background:var(--card2)}
+.jt{font-size:13px;color:var(--ink2);width:46px;flex:none;line-height:1.25;text-align:right}
+.jrow .dot{margin-left:-2px}
+.jrow.run .tt{color:var(--ink);font-weight:600}
+.jgap{display:flex;align-items:center;gap:8px;width:100%;padding:8px 14px 8px 70px;font-size:13px;color:var(--muted);position:relative}
+.jgap em{font-style:normal;color:var(--ink2);border-bottom:1px dotted var(--muted)}
+.jrow+.jrow::before,.jrow+.jgap::before,.jgap+.jrow::before{left:70px}
+
+/* ---------- settings ---------- */
+.ecat{margin:0 0 18px}
+.ecat-h{display:flex;align-items:center;gap:6px;padding:0 0 7px 4px}
+.ecat-h .name{flex:1;min-width:0;display:flex;align-items:center;gap:8px;font-weight:600;font-size:15px;padding:6px 0}
+.erow{display:flex;align-items:center;position:relative}
+.erow-main{flex:1;min-width:0;display:flex;align-items:center;gap:12px;padding:10px 6px 10px 16px;min-height:52px}
+.ib{width:40px;height:44px;display:grid;place-items:center;color:var(--ink2);flex:none;border-radius:10px}
+.ib:active{background:var(--card2)}
+.addrow{display:flex;align-items:center;gap:10px;width:100%;padding:13px 16px;color:var(--c0);font-weight:500;position:relative;border-top:1px solid var(--line)}
+.btn{display:block;width:100%;padding:14px;border-radius:14px;font-weight:600;font-size:17px;background:var(--card2);margin-top:8px;text-align:center}
+.btn:active{filter:brightness(.95)}
+.btn.primary{background:var(--ink);color:var(--card)}
+.btn.danger{color:var(--danger)}
+.btn.ghost{background:var(--card);box-shadow:0 0 0 1px var(--ring)}
+.stat{display:flex;justify-content:space-between;gap:12px;padding:8px 0;font-size:15px;border-top:1px solid var(--line)}
+.stat:first-of-type{border-top:0}
+.stat span:last-child{color:var(--ink2);text-align:right}
+.ok{color:var(--good)!important}
+.note{font-size:14px;color:var(--ink2);margin:0 0 6px;line-height:1.45}
+
+/* ---------- tab bar ---------- */
+.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:30;display:flex;justify-content:center;background:var(--card);
+  border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+.tabbar-in{display:flex;width:100%;max-width:560px}
+.tabbar button{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:7px 0 5px;font-size:11px;color:var(--muted)}
+.tabbar button.on{color:var(--ink)}
+.tabbar button.on span{font-weight:600}
+.tabbar .live{position:absolute;margin:-2px 0 0 18px;width:8px;height:8px;border-radius:50%;background:var(--cc);box-shadow:0 0 0 2px var(--card)}
+.tabbar button{position:relative}
+
+/* ---------- sheet & toast ---------- */
+#sheet{position:fixed;inset:0;z-index:50;display:none}
+#sheet.open{display:block}
+.scrim{position:absolute;inset:0;background:rgba(0,0,0,.4);animation:fade .18s ease-out}
+.sheet{position:absolute;left:0;right:0;bottom:0;max-height:90vh;overflow:auto;-webkit-overflow-scrolling:touch;background:var(--card);
+  border-radius:22px 22px 0 0;padding:8px 16px calc(16px + env(safe-area-inset-bottom));animation:up .24s cubic-bezier(.2,.8,.2,1);max-width:560px;margin:0 auto}
+.sheet::before{content:"";display:block;width:36px;height:5px;border-radius:3px;background:var(--line);margin:0 auto 12px}
+.sheet h3{margin:0 0 4px;font-size:20px}
+.sheet .note{margin-top:6px}
+.fld{display:block;margin:12px 0}
+.fld>span{display:block;font-size:13px;color:var(--ink2);margin-bottom:6px}
+.fld input,.fld select{display:block;width:100%;font:inherit;font-size:17px;padding:12px;border-radius:12px;border:1px solid var(--line);
+  background:var(--bg);color:var(--ink);-webkit-appearance:none;appearance:none;min-height:50px;text-align:left}
+.fld select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23898781' stroke-width='2.5' stroke-linecap='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 14px center;padding-right:38px}
+.fld input::-webkit-date-and-time-value{text-align:left}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin:-4px 0 4px}
+.chips button{padding:8px 12px;border-radius:999px;background:var(--card2);font-size:14px;font-weight:500}
+.chips button:active{filter:brightness(.92)}
+.err{color:var(--danger);font-size:14px;margin:6px 0 0;min-height:0}
+.hint{color:var(--ink2);font-size:14px;margin:4px 0 0}
+.sw{display:flex;gap:10px;flex-wrap:wrap;margin-top:4px}
+.sw button{width:36px;height:36px;border-radius:50%;box-shadow:0 0 0 1px var(--ring)}
+.sw button.on{box-shadow:0 0 0 2px var(--card),0 0 0 4px var(--ink)}
+@keyframes up{from{transform:translateY(100%)}to{transform:none}}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+
+#toast{position:fixed;left:16px;right:16px;bottom:calc(72px + env(safe-area-inset-bottom));z-index:40;max-width:528px;margin:0 auto;
+  background:var(--ink);color:var(--card);border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:12px;font-size:15px;
+  transform:translateY(16px);opacity:0;pointer-events:none;transition:opacity .2s,transform .2s}
+#toast.show{opacity:1;transform:none;pointer-events:auto}
+#toast button{margin-left:auto;font-weight:700;color:var(--card);padding:2px 4px;white-space:nowrap}
+</style>
+</head>
+<body>
+<main id="view"></main>
+<nav class="tabbar"><div class="tabbar-in" id="tabs"></div></nav>
+<div id="sheet"></div>
+<div id="toast" role="status"><span id="toast-t"></span><button id="toast-b"></button></div>
+
+<script>
+'use strict';
+/* =========================================================
+   Хронометр — учёт времени по задачам. Работает офлайн.
+   Все данные хранятся в localStorage этого устройства.
+   ========================================================= */
+const KEY = 'hronometr.v1';
+const MIN_SESSION = 5000;          // записи короче 5 секунд не сохраняются (случайные нажатия)
+const GAP_MIN = 10 * 60000;        // показывать пробелы в журнале от 10 минут…
+const GAP_MAX = 6 * 3600000;       // …до 6 часов
+const BACKUP_EVERY = 14 * 864e5;   // напоминание о резервной копии
+
+function defaults(){
+  return {
+    v: 1,
+    cats: [
+      {id:'c1', name:'Развитие и дело', color:0},
+      {id:'c2', name:'Тело и быт', color:1},
+      {id:'c3', name:'Люди и восстановление', color:2},
+    ],
+    tasks: [
+      {id:'t1', name:'Пары', cat:'c1'},
+      {id:'t2', name:'Самостоятельная учёба', cat:'c1'},
+      {id:'t3', name:'Работа', cat:'c1'},
+      {id:'t4', name:'Репетиторство', cat:'c1'},
+      {id:'t5', name:'Свои проекты', cat:'c1'},
+      {id:'t6', name:'Автошкола', cat:'c1'},
+      {id:'t7', name:'Спорт', cat:'c2'},
+      {id:'t8', name:'Дорога', cat:'c2'},
+      {id:'t9', name:'Быт', cat:'c2'},
+      {id:'t10', name:'Девушка', note:'встречи, свидания, переписка, звонки', cat:'c3'},
+      {id:'t11', name:'Люди', note:'друзья, семья, однокурсники', cat:'c3'},
+      {id:'t12', name:'Отдых', cat:'c3'},
+      {id:'t13', name:'Пустое время', cat:'c3'},
+    ],
+    sessions: [],   // {id, t: taskId, s: startMs, e: endMs}
+    run: null,      // {t: taskId, s: startMs}
+    lastBackup: 0,
+    created: Date.now(),
+  };
+}
+
+/* ---------- storage ---------- */
+function normalize(d){
+  if (!d || typeof d !== 'object' || !Array.isArray(d.cats) || !Array.isArray(d.tasks) || !Array.isArray(d.sessions)) return null;
+  const cats = d.cats.filter(c => c && c.id && typeof c.name === 'string')
+    .map(c => ({id:String(c.id), name:c.name, color:Math.min(7, Math.max(0, c.color|0)), ...(c.archived ? {archived:true} : {})}));
+  const catIds = new Set(cats.map(c => c.id));
+  const tasks = d.tasks.filter(t => t && t.id && typeof t.name === 'string')
+    .map(t => ({id:String(t.id), name:t.name, cat:catIds.has(t.cat) ? t.cat : (cats[0] && cats[0].id), ...(t.note ? {note:String(t.note)} : {}), ...(t.archived ? {archived:true} : {})}));
+  const taskIds = new Set(tasks.map(t => t.id));
+  const sessions = d.sessions.filter(x => x && taskIds.has(x.t) && isFinite(x.s) && isFinite(x.e) && x.e > x.s)
+    .map(x => ({id: x.id ? String(x.id) : uid(), t:x.t, s:+x.s, e:+x.e}))
+    .sort((a, b) => a.s - b.s);
+  const run = d.run && taskIds.has(d.run.t) && isFinite(d.run.s) ? {t:d.run.t, s:+d.run.s} : null;
+  return {v:1, cats, tasks, sessions, run, lastBackup:+d.lastBackup || 0, created:+d.created || Date.now()};
+}
+function load(){
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (raw) { const n = normalize(JSON.parse(raw)); if (n) return n; }
+  } catch (e) { console.error(e); }
+  return defaults();
+}
+let storageError = false;
+function save(){
+  try { localStorage.setItem(KEY, JSON.stringify(D)); storageError = false; }
+  catch (e) { storageError = true; toast('Не удалось сохранить данные: ' + e.message); }
+}
+let D = load();
+const S = {tab:'home', period:'week', anchor:Date.now(), sel:null, jDays:14};
+let undoSnap = null;
+
+/* ---------- helpers ---------- */
+const $ = (s, r = document) => r.querySelector(s);
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const p2 = n => (n < 10 ? '0' : '') + n;
+const DAY = 864e5;
+function sod(t){ const d = new Date(t); d.setHours(0,0,0,0); return d.getTime(); }
+function addDays(t, n){ const d = new Date(t); d.setDate(d.getDate() + n); return d.getTime(); }
+function sow(t){ const d = new Date(sod(t)); d.setDate(d.getDate() - (d.getDay() + 6) % 7); return d.getTime(); }
+const ov = (s, e, a, b) => Math.max(0, Math.min(e, b) - Math.max(s, a));
+const hm = t => { const d = new Date(t); return p2(d.getHours()) + ':' + p2(d.getMinutes()); };
+function fmtClock(ms){
+  const s = Math.max(0, Math.floor(ms / 1000));
+  return Math.floor(s / 3600) + ':' + p2(Math.floor(s % 3600 / 60)) + ':' + p2(s % 60);
+}
+function fmtDur(ms){
+  if (!(ms > 0)) return '0 мин';
+  if (ms < 60000) return Math.floor(ms / 1000) + ' с';
+  const m = Math.floor(ms / 60000), h = Math.floor(m / 60), mm = m % 60;
+  if (!h) return mm + ' мин';
+  return mm && h < 100 ? h + ' ч ' + mm + ' мин' : h + ' ч';
+}
+function pctStr(v, total){
+  if (!total) return '';
+  const p = v / total * 100;
+  return p > 0 && p < 1 ? '<1%' : Math.round(p) + '%';
+}
+const WD = ['вс','пн','вт','ср','чт','пт','сб'];
+const MON_G = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+const MON_S = ['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+const MON_N = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+function dLong(t, withYear){
+  const d = new Date(t);
+  let s = d.getDate() + ' ' + MON_G[d.getMonth()];
+  if (withYear || d.getFullYear() !== new Date().getFullYear()) s += ' ' + d.getFullYear();
+  return s;
+}
+function dayLabel(t){
+  const today = sod(Date.now());
+  if (t === today) return 'Сегодня';
+  if (t === addDays(today, -1)) return 'Вчера';
+  return WD[new Date(t).getDay()] + ', ' + dLong(t);
+}
+function whenLabel(t){
+  const day = sod(t), today = sod(Date.now());
+  if (day === today) return hm(t);
+  if (day === addDays(today, -1)) return 'вчера ' + hm(t);
+  return dLong(t) + ' ' + hm(t);
+}
+function toLocalInput(t){
+  const d = new Date(t);
+  return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()) + 'T' + p2(d.getHours()) + ':' + p2(d.getMinutes());
+}
+function fromLocalInput(v){
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(v || '');
+  if (!m) return NaN;
+  return new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]).getTime();
+}
+
+const GHOST_CAT = {id:'?', name:'Без категории', color:7};
+const CAT = id => D.cats.find(c => c.id === id) || GHOST_CAT;
+const TASK = id => D.tasks.find(t => t.id === id) || {id, name:'(удалённая задача)', cat:'?'};
+const catOf = id => TASK(id).cat;
+const activeCats = () => D.cats.filter(c => !c.archived);
+const activeTasks = catId => D.tasks.filter(t => t.cat === catId && !t.archived);
+const sortSessions = () => D.sessions.sort((a, b) => a.s - b.s);
+const isStandalone = () => window.navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
+
+const I = {
+  play:'<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg>',
+  stop:'<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor"/></svg>',
+  left:'<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>',
+  right:'<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>',
+  up:'<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg>',
+  down:'<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>',
+  edit:'<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16v4z"/></svg>',
+  plus:'<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+  tabHome:'<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13.5" r="7.5"/><path d="M12 13.5V9.5M10 2.5h4M12 2.5V6M18.5 6.5l1.2-1.2"/></svg>',
+  tabStats:'<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5.5 20v-7M12 20V5M18.5 20v-10M3 20h18"/></svg>',
+  tabLog:'<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M9 6.5h11M9 12h11M9 17.5h11"/><circle cx="4.8" cy="6.5" r="1" fill="currentColor"/><circle cx="4.8" cy="12" r="1" fill="currentColor"/><circle cx="4.8" cy="17.5" r="1" fill="currentColor"/></svg>',
+  tabSet:'<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h9M17 7h3M4 12h3M11 12h9M4 17h11M19 17h1"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="17" r="2"/></svg>',
+};
+
+/* ---------- core actions ---------- */
+function closeRun(now){
+  const r = D.run; D.run = null;
+  if (r && now - r.s >= MIN_SESSION) { D.sessions.push({id:uid(), t:r.t, s:r.s, e:now}); sortSessions(); return now - r.s; }
+  return 0;
+}
+function toggleTask(id){
+  const now = Date.now();
+  undoSnap = JSON.stringify(D);
+  if (D.run && D.run.t === id) { stopRun(); return; }
+  const prev = D.run ? D.run.t : null;
+  const dur = prev ? closeRun(now) : 0;
+  D.run = {t:id, s:now};
+  save(); render();
+  if (prev && dur) toast(TASK(prev).name + ' → ' + TASK(id).name, 'Отменить', undo);
+}
+function stopRun(){
+  if (!D.run) return;
+  if (!undoSnap) undoSnap = JSON.stringify(D);
+  const t = D.run.t;
+  const dur = closeRun(Date.now());
+  save(); render();
+  toast(dur ? TASK(t).name + ' · ' + fmtDur(dur) + ' сохранено' : 'Меньше 5 секунд — запись не сохранена', 'Отменить', undo);
+  undoSnap = undoSnap; // оставляем для кнопки «Отменить»
+}
+function undo(){
+  if (!undoSnap) return;
+  const n = normalize(JSON.parse(undoSnap));
+  undoSnap = null;
+  if (n) { D = n; save(); render(); }
+}
+
+/* ---------- toast ---------- */
+let toastTimer = 0, toastFn = null;
+function toast(text, btn, fn){
+  const el = $('#toast');
+  $('#toast-t').textContent = text;
+  const b = $('#toast-b');
+  b.textContent = btn || ''; b.style.display = btn ? '' : 'none';
+  toastFn = fn || null;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.classList.remove('show'); toastFn = null; }, btn ? 5000 : 2800);
+}
+$('#toast-b').addEventListener('click', () => { const f = toastFn; $('#toast').classList.remove('show'); toastFn = null; if (f) f(); });
+
+/* ---------- sheets ---------- */
+function openSheet(html, mount){
+  const root = $('#sheet');
+  root.innerHTML = '<div class="scrim"></div><div class="sheet" role="dialog" aria-modal="true">' + html + '</div>';
+  root.classList.add('open');
+  root.querySelector('.scrim').addEventListener('click', closeSheet);
+  const sh = root.querySelector('.sheet');
+  if (mount) mount(sh);
+  return sh;
+}
+function closeSheet(){ const r = $('#sheet'); r.classList.remove('open'); r.innerHTML = ''; }
+function confirmSheet(title, text, okLabel, danger){
+  return new Promise(res => {
+    openSheet(`<h3>${esc(title)}</h3><p class="note">${esc(text)}</p>
+      <button class="btn ${danger ? 'danger' : 'primary'}" data-k="ok">${esc(okLabel)}</button>
+      <button class="btn" data-k="no">Отмена</button>`, sh => {
+      sh.querySelector('[data-k=ok]').onclick = () => { closeSheet(); res(true); };
+      sh.querySelector('[data-k=no]').onclick = () => { closeSheet(); res(false); };
+      $('#sheet .scrim').onclick = () => { closeSheet(); res(false); };
+    });
+  });
+}
+function taskOptions(selected, includeId){
+  let h = '';
+  for (const c of D.cats) {
+    const ts = D.tasks.filter(t => t.cat === c.id && (!t.archived || t.id === includeId));
+    if (!ts.length) continue;
+    h += `<optgroup label="${esc(c.name)}">` + ts.map(t =>
+      `<option value="${t.id}"${t.id === selected ? ' selected' : ''}>${esc(t.name)}${t.archived ? ' (архив)' : ''}</option>`).join('') + '</optgroup>';
+  }
+  return h;
+}
+function lastUsedTask(){
+  for (let i = D.sessions.length - 1; i >= 0; i--) { const t = TASK(D.sessions[i].t); if (!t.archived && t.cat !== '?') return t.id; }
+  const c = activeCats().find(c => activeTasks(c.id).length);
+  return c ? activeTasks(c.id)[0].id : (D.tasks[0] && D.tasks[0].id);
+}
+
+/* Редактирование идущего хронометра */
+function sheetRun(){
+  const r = D.run; if (!r) return;
+  let ps = r.s;
+  openSheet(`<h3>Идёт сейчас</h3>
+    <label class="fld"><span>Задача</span><select name="t">${taskOptions(r.t, r.t)}</select></label>
+    <label class="fld"><span>Начало</span><input type="datetime-local" name="s" value="${toLocalInput(r.s)}"></label>
+    <div class="chips"><button data-m="-1">−1 мин</button><button data-m="-5">−5 мин</button><button data-m="-15">−15 мин</button><button data-m="-30">−30 мин</button><button data-m="5">+5 мин</button></div>
+    <p class="hint">Забыли запустить вовремя — сдвиньте начало назад.</p>
+    <p class="err" data-err></p>
+    <button class="btn primary" data-k="save">Сохранить</button>
+    <button class="btn" data-k="stop">Остановить</button>
+    <button class="btn danger" data-k="discard">Отменить запуск без сохранения</button>`, sh => {
+    const inS = sh.querySelector('[name=s]'), err = sh.querySelector('[data-err]');
+    inS.addEventListener('input', () => { const v = fromLocalInput(inS.value); if (isFinite(v)) ps = v; });
+    sh.querySelectorAll('[data-m]').forEach(b => b.onclick = () => { ps += (+b.dataset.m) * 60000; inS.value = toLocalInput(ps); });
+    sh.querySelector('[data-k=save]').onclick = () => {
+      const now = Date.now();
+      if (!isFinite(ps)) { err.textContent = 'Укажите время начала.'; return; }
+      if (ps > now) { err.textContent = 'Начало не может быть в будущем.'; return; }
+      let trimmed = false;
+      const last = D.sessions[D.sessions.length - 1];
+      if (last && ps < last.e) {
+        if (last.s < ps) { last.e = ps; trimmed = true; }
+        else { err.textContent = `Это раньше начала предыдущей записи «${TASK(last.t).name}» (${whenLabel(last.s)}). Сначала поправьте её в журнале.`; return; }
+      }
+      undoSnap = JSON.stringify(D);
+      D.run = {t: sh.querySelector('[name=t]').value, s: ps};
+      save(); closeSheet(); render();
+      toast(trimmed ? 'Начало изменено, предыдущая запись укорочена' : 'Сохранено', trimmed ? 'Отменить' : '', trimmed ? undo : null);
+    };
+    sh.querySelector('[data-k=stop]').onclick = () => { closeSheet(); undoSnap = JSON.stringify(D); stopRun(); };
+    sh.querySelector('[data-k=discard]').onclick = () => {
+      undoSnap = JSON.stringify(D);
+      D.run = null; save(); closeSheet(); render();
+      toast('Запуск отменён', 'Вернуть', undo);
+    };
+  });
+}
+
+/* Редактирование / добавление записи */
+function sheetSession(sess, preset){
+  const isNew = !sess;
+  const src = sess || preset;
+  let ps = src.s, pe = src.e;
+  const t = src.t || lastUsedTask();
+  openSheet(`<h3>${isNew ? 'Новая запись' : 'Запись'}</h3>
+    <label class="fld"><span>Задача</span><select name="t">${taskOptions(t, t)}</select></label>
+    <label class="fld"><span>Начало</span><input type="datetime-local" name="s" value="${toLocalInput(ps)}"></label>
+    <label class="fld"><span>Конец</span><input type="datetime-local" name="e" value="${toLocalInput(pe)}"></label>
+    <p class="hint" data-dur></p>
+    <p class="err" data-err></p>
+    <button class="btn primary" data-k="save">Сохранить</button>
+    ${isNew ? '' : '<button class="btn danger" data-k="del">Удалить запись</button>'}
+    <button class="btn" data-k="cancel">Отмена</button>`, sh => {
+    const inS = sh.querySelector('[name=s]'), inE = sh.querySelector('[name=e]');
+    const dur = sh.querySelector('[data-dur]'), err = sh.querySelector('[data-err]');
+    const upd = () => { dur.textContent = isFinite(ps) && isFinite(pe) && pe > ps ? 'Длительность: ' + fmtDur(pe - ps) : ''; };
+    inS.addEventListener('input', () => { ps = fromLocalInput(inS.value); upd(); });
+    inE.addEventListener('input', () => { pe = fromLocalInput(inE.value); upd(); });
+    upd();
+    sh.querySelector('[data-k=save]').onclick = () => {
+      if (!isFinite(ps) || !isFinite(pe)) { err.textContent = 'Укажите начало и конец.'; return; }
+      if (pe <= ps) { err.textContent = 'Конец должен быть позже начала.'; return; }
+      if (pe > Date.now() + 60000) { err.textContent = 'Конец не может быть в будущем.'; return; }
+      if (D.run && pe > D.run.s && ps < Date.now()) { err.textContent = `Запись пересекается с идущим хронометром (с ${whenLabel(D.run.s)}).`; return; }
+      undoSnap = JSON.stringify(D);
+      const tv = sh.querySelector('[name=t]').value;
+      if (isNew) D.sessions.push({id:uid(), t:tv, s:ps, e:pe});
+      else Object.assign(sess, {t:tv, s:ps, e:pe});
+      sortSessions(); save(); closeSheet(); render();
+      toast(isNew ? 'Запись добавлена' : 'Запись изменена', 'Отменить', undo);
+    };
+    const del = sh.querySelector('[data-k=del]');
+    if (del) del.onclick = () => {
+      undoSnap = JSON.stringify(D);
+      D.sessions = D.sessions.filter(x => x !== sess);
+      save(); closeSheet(); render();
+      toast('Запись удалена', 'Вернуть', undo);
+    };
+    sh.querySelector('[data-k=cancel]').onclick = closeSheet;
+  });
+}
+
+/* Задача */
+function sheetTask(task, catId){
+  const isNew = !task;
+  const cur = task || {name:'', note:'', cat:catId};
+  openSheet(`<h3>${isNew ? 'Новая задача' : 'Задача'}</h3>
+    <label class="fld"><span>Название</span><input name="n" maxlength="60" value="${esc(cur.name)}" autocomplete="off"></label>
+    <label class="fld"><span>Пояснение (необязательно)</span><input name="d" maxlength="80" value="${esc(cur.note || '')}" placeholder="например: встречи, звонки" autocomplete="off"></label>
+    <label class="fld"><span>Категория</span><select name="c">${activeCats().concat(D.cats.filter(c => c.archived && c.id === cur.cat)).map(c => `<option value="${c.id}"${c.id === cur.cat ? ' selected' : ''}>${esc(c.name)}</option>`).join('')}</select></label>
+    <p class="err" data-err></p>
+    <button class="btn primary" data-k="save">${isNew ? 'Добавить' : 'Сохранить'}</button>
+    ${isNew ? '' : '<button class="btn danger" data-k="del">Удалить задачу</button>'}
+    <button class="btn" data-k="cancel">Отмена</button>`, sh => {
+    const n = sh.querySelector('[name=n]');
+    if (isNew) setTimeout(() => n.focus(), 250);
+    sh.querySelector('[data-k=save]').onclick = () => {
+      const name = n.value.trim(), note = sh.querySelector('[name=d]').value.trim(), cat = sh.querySelector('[name=c]').value;
+      if (!name) { sh.querySelector('[data-err]').textContent = 'Введите название.'; return; }
+      if (isNew) D.tasks.push({id:'t' + uid(), name, cat, ...(note ? {note} : {})});
+      else {
+        const moved = task.cat !== cat;
+        task.name = name; if (note) task.note = note; else delete task.note;
+        if (moved) { D.tasks.splice(D.tasks.indexOf(task), 1); task.cat = cat; D.tasks.push(task); }
+      }
+      save(); closeSheet(); render();
+    };
+    const del = sh.querySelector('[data-k=del]');
+    if (del) del.onclick = () => deleteTask(task);
+    sh.querySelector('[data-k=cancel]').onclick = closeSheet;
+  });
+}
+async function deleteTask(task){
+  if (D.run && D.run.t === task.id) { closeSheet(); toast('Сначала остановите эту задачу'); return; }
+  const has = D.sessions.some(x => x.t === task.id);
+  const ok = has
+    ? await confirmSheet('Убрать задачу в архив?', 'Задача исчезнет из списка, но вся её история останется в статистике и журнале. Вернуть её можно в настройках.', 'Убрать в архив')
+    : await confirmSheet('Удалить задачу?', `«${task.name}» будет удалена. Записей по ней нет.`, 'Удалить', true);
+  if (!ok) return;
+  if (has) task.archived = true; else D.tasks = D.tasks.filter(t => t !== task);
+  save(); render();
+}
+function moveTask(id, dir){
+  const t = TASK(id), same = activeTasks(t.cat), i = same.indexOf(t), j = i + dir;
+  if (i < 0 || j < 0 || j >= same.length) return;
+  const a = D.tasks.indexOf(same[i]), b = D.tasks.indexOf(same[j]);
+  [D.tasks[a], D.tasks[b]] = [D.tasks[b], D.tasks[a]];
+  save(); render();
+}
+
+/* Категория */
+function sheetCat(cat){
+  const isNew = !cat;
+  const used = D.cats.filter(c => !c.archived).map(c => c.color);
+  let color = cat ? cat.color : [0,1,2,3,4,5,6,7].find(i => !used.includes(i)) ?? 0;
+  openSheet(`<h3>${isNew ? 'Новая категория' : 'Категория'}</h3>
+    <label class="fld"><span>Название</span><input name="n" maxlength="40" value="${esc(cat ? cat.name : '')}" autocomplete="off"></label>
+    <div class="fld"><span>Цвет</span><div class="sw">${[0,1,2,3,4,5,6,7].map(i => `<button data-c="${i}" class="${i === color ? 'on' : ''}" style="background:var(--c${i})" aria-label="Цвет ${i + 1}"></button>`).join('')}</div></div>
+    <p class="err" data-err></p>
+    <button class="btn primary" data-k="save">${isNew ? 'Добавить' : 'Сохранить'}</button>
+    ${isNew ? '' : '<button class="btn danger" data-k="del">Удалить категорию</button>'}
+    <button class="btn" data-k="cancel">Отмена</button>`, sh => {
+    const n = sh.querySelector('[name=n]');
+    if (isNew) setTimeout(() => n.focus(), 250);
+    sh.querySelectorAll('[data-c]').forEach(b => b.onclick = () => {
+      color = +b.dataset.c;
+      sh.querySelectorAll('[data-c]').forEach(x => x.classList.toggle('on', x === b));
+    });
+    sh.querySelector('[data-k=save]').onclick = () => {
+      const name = n.value.trim();
+      if (!name) { sh.querySelector('[data-err]').textContent = 'Введите название.'; return; }
+      if (isNew) D.cats.push({id:'c' + uid(), name, color});
+      else { cat.name = name; cat.color = color; }
+      save(); closeSheet(); render();
+    };
+    const del = sh.querySelector('[data-k=del]');
+    if (del) del.onclick = async () => {
+      if (activeTasks(cat.id).length) { sh.querySelector('[data-err]').textContent = 'В категории есть задачи — сначала перенесите их в другую категорию или удалите.'; return; }
+      const hasArchived = D.tasks.some(t => t.cat === cat.id);
+      if (!await confirmSheet('Удалить категорию?', `«${cat.name}» исчезнет из списка.` + (hasArchived ? ' История архивных задач сохранится.' : ''), 'Удалить', true)) return;
+      if (hasArchived) cat.archived = true; else D.cats = D.cats.filter(c => c !== cat);
+      save(); render();
+    };
+    sh.querySelector('[data-k=cancel]').onclick = closeSheet;
+  });
+}
+function moveCat(id, dir){
+  const list = activeCats(), i = list.findIndex(c => c.id === id), j = i + dir;
+  if (i < 0 || j < 0 || j >= list.length) return;
+  const a = D.cats.indexOf(list[i]), b = D.cats.indexOf(list[j]);
+  [D.cats[a], D.cats[b]] = [D.cats[b], D.cats[a]];
+  save(); render();
+}
+function restoreTask(id){
+  const t = TASK(id); delete t.archived;
+  const c = D.cats.find(c => c.id === t.cat); if (c) delete c.archived;
+  save(); render(); toast('«' + t.name + '» снова в списке');
+}
+
+/* ---------- backup ---------- */
+function stamp(){ const d = new Date(); return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()); }
+async function shareOrDownload(name, type, text){
+  const file = new File([text], name, {type});
+  if (navigator.canShare && navigator.canShare({files:[file]})) {
+    try { await navigator.share({files:[file], title:name}); return true; }
+    catch (e) { if (e.name === 'AbortError') return false; }
+  }
+  const url = URL.createObjectURL(file);
+  const a = document.createElement('a');
+  a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+  return true;
+}
+async function exportJSON(){
+  const data = JSON.stringify(Object.assign({app:'hronometr', exported:new Date().toISOString()}, D));
+  if (await shareOrDownload('hronometr-' + stamp() + '.json', 'application/json', data)) {
+    D.lastBackup = Date.now(); save(); render(); toast('Копия сохранена');
+  }
+}
+function exportCSV(){
+  const rows = [['Дата','Начало','Конец','Минут','Задача','Категория']];
+  for (const x of D.sessions) {
+    const d = new Date(x.s), t = TASK(x.t);
+    rows.push([d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()), hm(x.s), hm(x.e), Math.round((x.e - x.s) / 60000), t.name, CAT(t.cat).name]);
+  }
+  const cell = v => { v = String(v); return /[;"\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+  shareOrDownload('hronometr-' + stamp() + '.csv', 'text/csv', '﻿' + rows.map(r => r.map(cell).join(';')).join('\r\n'));
+}
+function importJSON(){
+  const inp = document.createElement('input');
+  inp.type = 'file'; inp.accept = '.json,application/json'; inp.style.display = 'none';
+  document.body.appendChild(inp);
+  inp.onchange = async () => {
+    const f = inp.files && inp.files[0]; inp.remove();
+    if (!f) return;
+    let n = null;
+    try { n = normalize(JSON.parse(await f.text())); } catch (e) {}
+    if (!n) { toast('Это не похоже на резервную копию Хронометра'); return; }
+    const ok = await confirmSheet('Восстановить из копии?',
+      `В копии ${n.sessions.length} записей и ${n.tasks.filter(t => !t.archived).length} задач. Текущие данные на телефоне будут заменены.`, 'Заменить данные', true);
+    if (!ok) return;
+    undoSnap = JSON.stringify(D);
+    D = n; D.lastBackup = Date.now(); save(); render();
+    toast('Данные восстановлены', 'Отменить', undo);
+  };
+  inp.click();
+}
+async function resetAll(){
+  if (!await confirmSheet('Удалить все данные?', 'Будут удалены все записи и восстановлен исходный список задач. Это нельзя отменить — сначала сохраните копию.', 'Удалить всё', true)) return;
+  D = defaults(); save(); render(); toast('Данные удалены');
+}
+
+/* ---------- render: home ---------- */
+let HC = null;          // кэш сегодняшних сумм для живого обновления
+let renderedDay = 0;
+function renderHome(){
+  const now = Date.now(), t0 = sod(now), t1 = addDays(t0, 1);
+  const closed = {}, closedCat = {}; let closedTotal = 0;
+  for (const x of D.sessions) {
+    const v = ov(x.s, x.e, t0, t1); if (!v) continue;
+    closed[x.t] = (closed[x.t] || 0) + v;
+    const c = catOf(x.t); closedCat[c] = (closedCat[c] || 0) + v;
+    closedTotal += v;
+  }
+  HC = {t0, t1, closed, closedCat, closedTotal};
+  const rp = D.run ? ov(D.run.s, now, t0, t1) : 0;
+  const runCat = D.run ? catOf(D.run.t) : null;
+
+  let h = `<header class="hd"><h1>Хронометр</h1><div class="sub">Сегодня отмечено <b class="num" data-live="total">${fmtDur(closedTotal + rp)}</b></div></header>`;
+
+  let hideInstall = false;
+  try { hideInstall = !!localStorage.getItem('hronometr.hideInstall'); } catch (e) {}
+  if (!isStandalone() && /iPhone|iPad|iPod/.test(navigator.userAgent) && !hideInstall) {
+    h += `<div class="banner"><span>Чтобы работало без интернета: <b>Поделиться → На экран «Домой»</b> и открывайте с иконки. Данные Safari и иконки хранятся отдельно.</span><button class="x" data-act="hide-install" aria-label="Скрыть">×</button></div>`;
+  } else if (D.sessions.length && now - Math.max(D.lastBackup, D.created || 0) > BACKUP_EVERY) {
+    h += `<button class="banner" data-act="go-backup"><span>Давно не было резервной копии. <b>Сохранить копию →</b></span></button>`;
+  }
+
+  if (D.run) {
+    const t = TASK(D.run.t), c = CAT(t.cat);
+    h += `<section class="now on" style="--cc:var(--c${c.color})">
+      <button class="now-l" data-act="edit-run">
+        <span class="now-cat"><span class="dot"></span>${esc(c.name)}</span>
+        <b class="now-name">${esc(t.name)}</b>
+        <span class="now-since">с ${whenLabel(D.run.s)} · <u>изменить</u></span>
+      </button>
+      <div class="now-r"><div class="now-clock num" data-live="clock">${fmtClock(now - D.run.s)}</div>
+        <button class="stopbtn" data-act="stop">${I.stop}<span>Стоп</span></button></div>
+    </section>`;
+  } else {
+    h += `<section class="now"><div class="now-idle"><b>Ничего не запущено</b><span>Нажмите на задачу — хронометр начнёт отсчёт. Нажатие на другую задачу переключает таймер.</span></div></section>`;
+  }
+
+  for (const c of activeCats()) {
+    const ts = activeTasks(c.id); if (!ts.length) continue;
+    const cv = (closedCat[c.id] || 0) + (runCat === c.id ? rp : 0);
+    h += `<section class="grp" style="--cc:var(--c${c.color})"><div class="grp-h"><span>${esc(c.name)}</span><span class="num" data-live="cat-${c.id}">${cv > 0 ? fmtDur(cv) : ''}</span></div><div class="list">`;
+    for (const t of ts) {
+      const on = D.run && D.run.t === t.id;
+      const v = (closed[t.id] || 0) + (on ? rp : 0);
+      h += `<button class="task${on ? ' on' : ''}" data-act="toggle" data-id="${t.id}" aria-pressed="${on}">
+        <span class="dot"></span>
+        <span class="tn"><b>${esc(t.name)}</b>${t.note ? `<small>${esc(t.note)}</small>` : ''}</span>
+        <span class="tt num" data-live="task-${t.id}">${v > 0 ? fmtDur(v) : ''}</span>
+        <span class="pl">${on ? I.stop : I.play}</span></button>`;
+    }
+    h += '</div></section>';
+  }
+  return h;
+}
+
+/* ---------- render: stats ---------- */
+function periodRange(p, a){
+  const d = new Date(a);
+  switch (p) {
+    case 'day': { const f = sod(a); return {from:f, to:addDays(f, 1)}; }
+    case 'week': { const f = sow(a); return {from:f, to:addDays(f, 7)}; }
+    case 'month': return {from:new Date(d.getFullYear(), d.getMonth(), 1).getTime(), to:new Date(d.getFullYear(), d.getMonth() + 1, 1).getTime()};
+    case 'half': return {from:new Date(d.getFullYear(), d.getMonth() - 5, 1).getTime(), to:new Date(d.getFullYear(), d.getMonth() + 1, 1).getTime()};
+    case 'year': return {from:new Date(d.getFullYear(), 0, 1).getTime(), to:new Date(d.getFullYear() + 1, 0, 1).getTime()};
+    default: {
+      const first = D.sessions.length ? D.sessions[0].s : (D.run ? D.run.s : Date.now());
+      return {from:sod(first), to:addDays(sod(Date.now()), 1)};
+    }
+  }
+}
+function shiftAnchor(p, a, dir){
+  const d = new Date(a);
+  if (p === 'day') d.setDate(d.getDate() + dir);
+  else if (p === 'week') d.setDate(d.getDate() + 7 * dir);
+  else if (p === 'month') { d.setDate(1); d.setMonth(d.getMonth() + dir); }
+  else if (p === 'half') { d.setDate(1); d.setMonth(d.getMonth() + 6 * dir); }
+  else if (p === 'year') { d.setMonth(0, 1); d.setFullYear(d.getFullYear() + dir); }
+  return d.getTime();
+}
+function periodLabel(p, from, to){
+  const now = Date.now(), cur = now >= from && now < to;
+  const d = new Date(from);
+  if (p === 'day') return dayLabel(from) + (cur || from === addDays(sod(now), -1) ? ', ' + dLong(from) : '');
+  if (p === 'week') {
+    const e = new Date(addDays(to, -1));
+    const sameMonth = d.getMonth() === e.getMonth();
+    const range = sameMonth ? d.getDate() + '–' + dLong(e) : dLong(from) + ' – ' + dLong(e);
+    return (cur ? 'Эта неделя · ' : '') + range;
+  }
+  if (p === 'month') return MON_N[d.getMonth()] + ' ' + d.getFullYear();
+  if (p === 'half') {
+    const e = new Date(addDays(to, -1));
+    const range = d.getFullYear() === e.getFullYear()
+      ? MON_N[d.getMonth()] + ' – ' + MON_N[e.getMonth()].toLowerCase() + ' ' + e.getFullYear()
+      : MON_S[d.getMonth()] + ' ' + d.getFullYear() + ' – ' + MON_S[e.getMonth()] + ' ' + e.getFullYear();
+    return range;
+  }
+  if (p === 'year') return String(d.getFullYear());
+  return '';
+}
+function buckets(p, from, to){
+  const out = [];
+  if (p === 'week' || p === 'month') for (let t = from; t < to; t = addDays(t, 1)) out.push({s:t, e:addDays(t, 1)});
+  else if (p === 'year' || p === 'half') {
+    const d = new Date(from), y = d.getFullYear(), m0 = d.getMonth(), n = p === 'year' ? 12 : 6;
+    for (let m = m0; m < m0 + n; m++) out.push({s:new Date(y, m, 1).getTime(), e:new Date(y, m + 1, 1).getTime()});
+  }
+  return out;
+}
+function allSessions(now){ return D.run ? D.sessions.concat([{t:D.run.t, s:D.run.s, e:now, run:true}]) : D.sessions; }
+function aggregate(from, to, bks, now){
+  const byTask = new Map(), byCat = new Map(); let total = 0;
+  const bk = bks.map(b => ({s:b.s, e:b.e, total:0, cats:new Map()}));
+  for (const x of allSessions(now)) {
+    if (x.e <= from || x.s >= to) continue;
+    const v = ov(x.s, x.e, from, to), cid = catOf(x.t);
+    byTask.set(x.t, (byTask.get(x.t) || 0) + v);
+    byCat.set(cid, (byCat.get(cid) || 0) + v);
+    total += v;
+    for (const b of bk) {
+      if (x.e <= b.s || x.s >= b.e) continue;
+      const w = ov(x.s, x.e, b.s, b.e);
+      b.total += w; b.cats.set(cid, (b.cats.get(cid) || 0) + w);
+    }
+  }
+  return {byTask, byCat, total, bk};
+}
+function niceStep(maxH){
+  for (const c of [0.25, 0.5, 1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 25, 30, 40, 50, 60, 80, 100, 120, 150, 200, 250, 300, 400, 500, 1000])
+    if (maxH / c <= 4) return c;
+  return 2000;
+}
+const fmtH = v => v < 1 ? Math.round(v * 60) + ' м' : v + ' ч';
+const catsSorted = m => D.cats.concat(m.has('?') ? [GHOST_CAT] : []).filter(c => (m.get(c.id) || 0) > 0);
+
+function columnsCard(p, bk, now){
+  const byMonth = p === 'year' || p === 'half';
+  const max = Math.max(0, ...bk.map(b => b.total));
+  const step = niceStep(max / 3600000);
+  const top = Math.max(step, step * Math.ceil(max / 3600000 / step));
+  const topMs = top * 3600000;
+  let grid = '';
+  for (let v = step; v <= top + 1e-9; v += step) grid += `<div class="gl" style="bottom:${v / top * 100}%"><span>${fmtH(+v.toFixed(2))}</span></div>`;
+  grid += '<div class="gl base" style="bottom:0"></div>';
+  const cols = bk.map((b, i) => {
+    const segs = catsSorted(b.cats).map(c => `<span style="height:${b.cats.get(c.id) / topMs * 100}%;background:var(--c${c.color})"></span>`).join('');
+    const cls = S.sel === i ? ' sel' : (S.sel != null ? ' dim' : '');
+    return `<button class="col${cls}" data-act="col" data-i="${i}" aria-label="${esc(bucketLabel(p, b))}: ${fmtDur(b.total)}"><span class="stack">${segs}</span></button>`;
+  }).join('');
+  const tb = bk.find(b => now >= b.s && now < b.e);
+  const td = tb ? new Date(tb.s).getDate() : 0;
+  const xl = bk.map(b => {
+    const d = new Date(b.s), today = b === tb, n = d.getDate();
+    let t = '';
+    if (p === 'week') t = WD[d.getDay()];
+    else if (p === 'month') t = today || ([1, 5, 10, 15, 20, 25].includes(n) && !(td && Math.abs(n - td) <= 1)) ? n : '';
+    else t = MON_S[d.getMonth()];
+    return `<span class="${today ? 'today' : ''}">${t}</span>`;
+  }).join('');
+  let det;
+  if (S.sel != null && bk[S.sel]) {
+    const b = bk[S.sel];
+    det = `<b>${esc(bucketLabel(p, b))}</b> · ${fmtDur(b.total)}` +
+      (b.total ? `<div class="chipsrow">${catsSorted(b.cats).map(c => `<span><span class="dot" style="--cc:var(--c${c.color})"></span>${esc(c.name)} ${fmtDur(b.cats.get(c.id))}</span>`).join('')}</div>` : '');
+  } else det = byMonth ? 'Нажмите на месяц, чтобы увидеть детали' : 'Нажмите на день, чтобы увидеть детали';
+  return `<section class="card"><h2>${byMonth ? 'По месяцам' : 'По дням'}</h2>
+    <div class="plot">${grid}<div class="cols">${cols}</div></div><div class="xl">${xl}</div>
+    <div class="detail">${det}</div></section>`;
+}
+function bucketLabel(p, b){
+  if (p === 'year' || p === 'half') { const d = new Date(b.s); return MON_N[d.getMonth()] + ' ' + d.getFullYear(); }
+  return dayLabel(b.s) + (sod(Date.now()) - b.s < 2 * DAY ? ', ' + dLong(b.s) : '');
+}
+function timelineCard(from, to, now){
+  const len = to - from;
+  const list = allSessions(now).filter(x => x.e > from && x.s < to);
+  const segs = list.map(x => {
+    const a = Math.max(x.s, from), b = Math.min(x.e, to), c = CAT(catOf(x.t));
+    return `<span class="tl-seg${S.sel === x.s ? ' sel' : ''}" style="left:calc(${(a - from) / len * 100}% + 1px);width:calc(${(b - a) / len * 100}% - 2px);background:var(--c${c.color})"></span>`;
+  }).join('');
+  const nowMark = now >= from && now < to ? `<span class="tl-now" style="left:${(now - from) / len * 100}%"></span>` : '';
+  let det = 'Нажмите на полосу, чтобы увидеть запись';
+  const x = S.sel != null ? list.find(x => x.s === S.sel) : null;
+  if (x) {
+    const c = CAT(catOf(x.t));
+    det = `<span class="chipsrow" style="margin:0"><span><span class="dot" style="--cc:var(--c${c.color})"></span><b>${esc(TASK(x.t).name)}</b></span></span>${hm(x.s)} – ${x.run ? 'сейчас' : hm(x.e)} · ${fmtDur(x.e - x.s)}`;
+  } else if (!list.length) det = 'Записей нет';
+  return `<section class="card"><h2>День по часам</h2>
+    <div class="tl" data-act="tl" data-from="${from}" data-to="${to}">${segs}${nowMark}</div>
+    <div class="tl-ax"><span>0</span><span>3</span><span>6</span><span>9</span><span>12</span><span>15</span><span>18</span><span>21</span><span>24</span></div>
+    <div class="detail">${det}</div></section>`;
+}
+function tlTap(ev, el){
+  const r = el.getBoundingClientRect();
+  const from = +el.dataset.from, to = +el.dataset.to;
+  const t = from + (ev.clientX - r.left) / r.width * (to - from);
+  const list = allSessions(Date.now()).filter(x => x.e > from && x.s < to);
+  let best = null, bestD = (to - from) * 0.03; // ±~45 минут в пределах касания
+  for (const x of list) {
+    const d = t < x.s ? x.s - t : (t > x.e ? t - x.e : 0);
+    if (d < bestD || (d === 0 && bestD === 0)) { best = x; bestD = d; }
+  }
+  S.sel = best ? (S.sel === best.s ? null : best.s) : null;
+  render();
+}
+
+function renderStats(){
+  const p = S.period, now = Date.now();
+  const {from, to} = periodRange(p, S.anchor);
+  const bks = buckets(p, from, to);
+  const A = aggregate(from, to, bks, now);
+  let h = `<header class="hd"><h1>Статистика</h1></header>
+    <div class="seg" role="tablist">${[['day','День'],['week','Неделя'],['month','Месяц'],['half','Полгода'],['year','Год'],['all','Всё']].map(([k, l]) =>
+      `<button data-act="period" data-p="${k}" class="${k === p ? 'on' : ''}" role="tab" aria-selected="${k === p}">${l}</button>`).join('')}</div>`;
+  if (p !== 'all') h += `<div class="pnav"><button data-act="pprev" aria-label="Назад">${I.left}</button><div class="plabel">${periodLabel(p, from, to)}</div><button data-act="pnext" aria-label="Вперёд" ${to <= now ? '' : 'disabled'}>${I.right}</button></div>`;
+
+  const days = Math.max(1, Math.round((Math.min(to, addDays(sod(now), 1)) - from) / DAY));
+  const subtitle = p === 'all' ? 'всего с ' + dLong(from, true) : (p === 'day' ? 'отмечено за день' : 'отмечено за период');
+  h += `<section class="card"><div class="hero num">${fmtDur(A.total)}</div><div class="sub">${subtitle}${p !== 'day' && A.total > 0 ? ' · в среднем ' + fmtDur(A.total / days) + ' в день' : ''}</div>`;
+  if (!A.total) return h + '<p class="empty">За этот период записей нет.</p></section>' + (p === 'day' ? timelineCard(from, to, now) : '');
+
+  const cats = catsSorted(A.byCat);
+  h += `<div class="share">${cats.map(c => `<span style="flex:${A.byCat.get(c.id)};background:var(--c${c.color})"></span>`).join('')}</div>
+    <div class="legend">${cats.map(c => `<div class="lg"><span class="dot" style="--cc:var(--c${c.color})"></span><span class="lg-n">${esc(c.name)}</span><span class="num">${fmtDur(A.byCat.get(c.id))}</span><span class="pct num">${pctStr(A.byCat.get(c.id), A.total)}</span></div>`).join('')}</div></section>`;
+
+  if (p === 'day') h += timelineCard(from, to, now);
+  else if (bks.length) h += columnsCard(p, A.bk, now);
+
+  const rows = [...A.byTask.entries()].sort((a, b) => b[1] - a[1]);
+  const maxT = rows[0][1];
+  h += `<section class="card"><h2>По задачам</h2>` + rows.map(([id, v]) => {
+    const t = TASK(id), c = CAT(t.cat);
+    return `<div class="trow" style="--cc:var(--c${c.color})"><div class="trow-top"><span class="dot"></span><span class="tn"><b>${esc(t.name)}${t.archived ? '<i>архив</i>' : ''}</b></span><span class="num">${fmtDur(v)}</span><span class="pct num">${pctStr(v, A.total)}</span></div>
+      <div class="tbar"><span style="width:${v / maxT * 100}%"></span></div></div>`;
+  }).join('') + '</section>';
+  return h;
+}
+
+/* ---------- render: journal ---------- */
+let JT = null;          // кэш суммы за сегодня в журнале
+function renderJournal(){
+  const now = Date.now();
+  let h = `<header class="hd"><h1>Журнал</h1><div class="sub">Нажмите на запись, чтобы исправить время или задачу</div></header>
+    <button class="btn ghost" data-act="add-sess" style="margin-top:12px">+ Добавить запись вручную</button>`;
+  const list = (D.run ? [{t:D.run.t, s:D.run.s, e:now, run:true}] : []).concat(D.sessions.slice().reverse());
+  if (!list.length) return h + '<p class="empty" style="padding-top:28px">Записей пока нет. Запустите хронометр на вкладке «Задачи».</p>';
+  const groups = []; let cur = null, more = false;
+  for (const x of list) {
+    const d = sod(x.s);
+    if (!cur || cur.d !== d) {
+      if (groups.length >= S.jDays) { more = true; break; }
+      cur = {d, items:[]}; groups.push(cur);
+    }
+    cur.items.push(x);
+  }
+  JT = null;
+  for (const g of groups) {
+    const total = g.items.reduce((s, x) => s + ov(x.s, x.e, g.d, addDays(g.d, 1)), 0);
+    if (g.d === sod(now) && D.run) JT = {t0:g.d, t1:addDays(g.d, 1), base:total - ov(D.run.s, now, g.d, addDays(g.d, 1))};
+    h += `<section class="jday"><div class="jday-h"><span>${dayLabel(g.d)}${sod(now) - g.d < 2 * DAY ? ', ' + dLong(g.d) : ''}</span><span class="num"${g.d === sod(now) && D.run ? ' data-live="jtotal"' : ''}>${fmtDur(total)}</span></div><div class="list">`;
+    g.items.forEach((x, i) => {
+      const t = TASK(x.t), c = CAT(t.cat);
+      const endTxt = x.run ? 'идёт' : hm(x.e) + (sod(x.e) !== sod(x.s) && x.e - sod(x.e) > 0 ? '⁺¹' : '');
+      h += `<button class="jrow${x.run ? ' run' : ''}" style="--cc:var(--c${c.color})" data-act="${x.run ? 'edit-run' : 'edit-sess'}" data-id="${x.id || ''}">
+        <span class="jt num">${hm(x.s)}<br>${endTxt}</span><span class="dot"></span>
+        <span class="tn"><b>${esc(t.name)}</b><small>${esc(c.name)}</small></span>
+        <span class="tt num"${x.run ? ' data-live="jrun"' : ''}>${fmtDur(x.e - x.s)}</span></button>`;
+      const nx = g.items[i + 1];
+      if (nx) {
+        const gap = x.s - nx.e;
+        if (gap >= GAP_MIN && gap <= GAP_MAX)
+          h += `<button class="jgap" data-act="fill-gap" data-s="${nx.e}" data-e="${x.s}">${hm(nx.e)}–${hm(x.s)} не отмечено · ${fmtDur(gap)} <em>заполнить</em></button>`;
+      }
+    });
+    h += '</div></section>';
+  }
+  if (more) h += '<button class="btn ghost" data-act="more">Показать ещё</button>';
+  return h;
+}
+
+/* ---------- render: settings ---------- */
+let persisted = null;
+function renderSettings(){
+  let h = `<header class="hd"><h1>Настройки</h1></header>
+    <section class="card"><h2>Задачи и категории</h2><p class="note">Нажмите на название, чтобы переименовать, сменить категорию или удалить. Стрелки меняют порядок.</p></section>`;
+  const cats = activeCats();
+  cats.forEach((c, ci) => {
+    const ts = activeTasks(c.id);
+    h += `<section class="ecat" style="--cc:var(--c${c.color})"><div class="ecat-h">
+        <button class="name" data-act="edit-cat" data-id="${c.id}"><span class="dot"></span><span>${esc(c.name)}</span><span style="color:var(--muted)">${I.edit}</span></button>
+        <button class="ib" data-act="cat-up" data-id="${c.id}" ${ci === 0 ? 'disabled' : ''} aria-label="Выше">${I.up}</button>
+        <button class="ib" data-act="cat-down" data-id="${c.id}" ${ci === cats.length - 1 ? 'disabled' : ''} aria-label="Ниже">${I.down}</button>
+      </div><div class="list">`;
+    ts.forEach((t, i) => {
+      h += `<div class="erow"><button class="erow-main" data-act="edit-task" data-id="${t.id}"><span class="dot"></span><span class="tn"><b>${esc(t.name)}</b>${t.note ? `<small>${esc(t.note)}</small>` : ''}</span></button>
+        <button class="ib" data-act="task-up" data-id="${t.id}" ${i === 0 ? 'disabled' : ''} aria-label="Выше">${I.up}</button>
+        <button class="ib" data-act="task-down" data-id="${t.id}" ${i === ts.length - 1 ? 'disabled' : ''} aria-label="Ниже">${I.down}</button></div>`;
+    });
+    h += `<button class="addrow" data-act="add-task" data-cat="${c.id}">${I.plus}<span>Добавить задачу</span></button></div></section>`;
+  });
+  h += `<button class="btn ghost" data-act="add-cat">+ Новая категория</button>`;
+
+  const arch = D.tasks.filter(t => t.archived);
+  if (arch.length) h += `<section class="card"><h2>Архив задач</h2>${arch.map(t => `<div class="stat"><span>${esc(t.name)} <span style="color:var(--muted)">· ${esc(CAT(t.cat).name)}</span></span><button data-act="restore-task" data-id="${t.id}" style="color:var(--c0);font-weight:600">Вернуть</button></div>`).join('')}</section>`;
+
+  const lb = D.lastBackup ? whenLabel(D.lastBackup) : 'ещё не было';
+  h += `<section class="card" id="backup"><h2>Резервная копия</h2>
+    <p class="note">Все данные хранятся только на этом телефоне. Если удалить иконку приложения, данные пропадут — поэтому иногда сохраняйте копию в «Файлы» или iCloud Drive.</p>
+    <div class="stat"><span>Последняя копия</span><span>${lb}</span></div>
+    <button class="btn primary" data-act="export">Сохранить копию</button>
+    <button class="btn" data-act="import">Восстановить из копии</button>
+    <button class="btn" data-act="csv">Выгрузить таблицу (CSV)</button></section>`;
+
+  const sw = !!(navigator.serviceWorker && navigator.serviceWorker.controller);
+  const st = isStandalone();
+  const yes = '<span class="ok">✓ да</span>';
+  h += `<section class="card"><h2>Состояние</h2>
+    <div class="stat"><span>Работа без интернета</span>${sw ? '<span class="ok">✓ готово</span>' : '<span>не включена — откройте приложение один раз с интернетом</span>'}</div>
+    <div class="stat"><span>Открыто с экрана «Домой»</span>${st ? yes : '<span>нет</span>'}</div>
+    <div class="stat"><span>Постоянное хранилище</span>${persisted ? yes : '<span>не подтверждено</span>'}</div>
+    <div class="stat"><span>Записей</span><span class="num">${D.sessions.length}</span></div>
+    <div class="stat"><span>Ведётся с</span><span>${dLong(D.sessions.length ? Math.min(D.sessions[0].s, D.created) : D.created, true)}</span></div>
+    ${storageError ? '<div class="stat"><span style="color:var(--danger)">Ошибка сохранения — сделайте копию!</span></div>' : ''}
+    <button class="btn danger" data-act="reset" style="margin-top:14px">Удалить все данные</button></section>
+    <p class="note" style="text-align:center;color:var(--muted)">Хронометр · версия 1.0</p>`;
+  return h;
+}
+
+/* ---------- render ---------- */
+const TABS = [['home','Задачи',I.tabHome],['stats','Статистика',I.tabStats],['journal','Журнал',I.tabLog],['settings','Настройки',I.tabSet]];
+function render(){
+  renderedDay = sod(Date.now());
+  const v = $('#view');
+  v.innerHTML = S.tab === 'stats' ? renderStats() : S.tab === 'journal' ? renderJournal() : S.tab === 'settings' ? renderSettings() : renderHome();
+  const runC = D.run ? CAT(catOf(D.run.t)).color : null;
+  $('#tabs').innerHTML = TABS.map(([k, l, ic]) =>
+    `<button data-act="tab" data-tab="${k}" class="${S.tab === k ? 'on' : ''}" aria-current="${S.tab === k ? 'page' : 'false'}">${ic}${k === 'home' && D.run && S.tab !== 'home' ? `<i class="live" style="--cc:var(--c${runC})"></i>` : ''}<span>${l}</span></button>`).join('');
+}
+function setLive(k, v){ const el = document.querySelector(`[data-live="${k}"]`); if (el && el.textContent !== v) el.textContent = v; }
+let statTick = 0;
+function tick(){
+  const now = Date.now();
+  if (sod(now) !== renderedDay) { if (S.tab === 'stats') S.anchor = now; render(); return; }
+  if (!D.run || document.hidden) return;
+  if (S.tab === 'home' && HC) {
+    const rp = ov(D.run.s, now, HC.t0, HC.t1), id = D.run.t, cid = catOf(id);
+    setLive('clock', fmtClock(now - D.run.s));
+    setLive('task-' + id, fmtDur((HC.closed[id] || 0) + rp));
+    setLive('cat-' + cid, fmtDur((HC.closedCat[cid] || 0) + rp));
+    setLive('total', fmtDur(HC.closedTotal + rp));
+  } else if (S.tab === 'journal') {
+    setLive('jrun', fmtDur(now - D.run.s));
+    if (JT) setLive('jtotal', fmtDur(JT.base + ov(D.run.s, now, JT.t0, JT.t1)));
+  } else if (S.tab === 'stats' && !$('#sheet.open')) {
+    if (++statTick % 30 === 0) render();
+  }
+}
+
+/* ---------- events ---------- */
+document.addEventListener('click', ev => {
+  const el = ev.target.closest('[data-act]');
+  if (!el || el.disabled || el.closest('#sheet')) return;
+  const id = el.dataset.id;
+  switch (el.dataset.act) {
+    case 'tab': S.tab = el.dataset.tab; S.sel = null; render(); window.scrollTo(0, 0); break;
+    case 'toggle': toggleTask(id); break;
+    case 'stop': undoSnap = JSON.stringify(D); stopRun(); break;
+    case 'edit-run': sheetRun(); break;
+    case 'period': S.period = el.dataset.p; S.anchor = Date.now(); S.sel = null; render(); break;
+    case 'pprev': S.anchor = shiftAnchor(S.period, S.anchor, -1); S.sel = null; render(); break;
+    case 'pnext': S.anchor = shiftAnchor(S.period, S.anchor, 1); S.sel = null; render(); break;
+    case 'col': { const i = +el.dataset.i; S.sel = S.sel === i ? null : i; render(); break; }
+    case 'tl': tlTap(ev, el); break;
+    case 'add-sess': { const e = Date.now(); sheetSession(null, {s:e - 30 * 60000, e}); break; }
+    case 'edit-sess': { const x = D.sessions.find(s => s.id === id); if (x) sheetSession(x); break; }
+    case 'fill-gap': sheetSession(null, {s:+el.dataset.s, e:+el.dataset.e}); break;
+    case 'more': S.jDays += 14; render(); break;
+    case 'edit-task': sheetTask(TASK(id)); break;
+    case 'add-task': sheetTask(null, el.dataset.cat); break;
+    case 'task-up': moveTask(id, -1); break;
+    case 'task-down': moveTask(id, 1); break;
+    case 'edit-cat': sheetCat(CAT(id)); break;
+    case 'add-cat': sheetCat(null); break;
+    case 'cat-up': moveCat(id, -1); break;
+    case 'cat-down': moveCat(id, 1); break;
+    case 'restore-task': restoreTask(id); break;
+    case 'export': exportJSON(); break;
+    case 'import': importJSON(); break;
+    case 'csv': exportCSV(); break;
+    case 'reset': resetAll(); break;
+    case 'go-backup': S.tab = 'settings'; render(); setTimeout(() => { const b = $('#backup'); if (b) b.scrollIntoView({behavior:'smooth'}); }, 30); break;
+    case 'hide-install': try { localStorage.setItem('hronometr.hideInstall', '1'); } catch (e) {} render(); break;
+  }
+});
+document.addEventListener('visibilitychange', () => { if (!document.hidden && !$('#sheet.open')) render(); });
+window.addEventListener('pageshow', () => { if (!$('#sheet.open')) render(); });
+window.addEventListener('storage', e => { if (e.key === KEY) { D = load(); render(); } });
+
+render();
+setInterval(tick, 1000);
+
+if (navigator.storage && navigator.storage.persist) {
+  navigator.storage.persisted().then(p => p || navigator.storage.persist()).then(p => { persisted = p; if (S.tab === 'settings') render(); }).catch(() => {});
+}
+if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+  navigator.serviceWorker.register('sw.js').then(() => navigator.serviceWorker.ready).then(() => { if (S.tab === 'settings') render(); }).catch(() => {});
+}
+</script>
+</body>
+</html>
